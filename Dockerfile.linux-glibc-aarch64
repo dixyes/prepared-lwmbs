@@ -34,4 +34,6 @@ RUN set -xeo pipefail ; \
         binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu gcc-c++-aarch64-linux-gnu \
     && \
     # Prepare glibc from centos-altarch
-    php /fetch_glibc.php
+    php /fetch_glibc.php && \
+    # Fetch lwmbs
+    git clone --branch $LWMBS_BRANCH $LWMBS_REPO /lwmbs
