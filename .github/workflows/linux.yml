@@ -17,3 +17,4 @@ jobs:
         run: |
           echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ vars.DOCKERHUB_USERNAME }}" --password-stdin
           ./upload.sh
+          rm ~/.docker/config.json
