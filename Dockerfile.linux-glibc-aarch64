@@ -1,0 +1,37 @@
+
+
+FROM fedora
+
+LABEL maintainer="Yun Dou <dixyes@gmail.com>"
+LABEL license="MulanPSL-2.0"
+LABEL description="Image for using lwmbs - linux glibc x86_64-aarch64 cross compile"
+
+ARG LWMBS_BRANCH=master
+ARG LWMBS_REPO=https://github.com/dixyes/lwmbs.git
+
+ARG FEDORA_MIRROR
+ARG CENTOS_ALTARCH_MIRROR
+
+COPY fetch_glibc.php /
+
+RUN set -xeo pipefail ; \
+    find /etc/yum.repos.d -name "*cisco*.repo" -exec rm {} \; && \
+    # Setup mirrors if specified
+    [ -n "$FEDORA_MIRROR" ] && { \
+        sed -i 's/^metalink=/#metalink=/g' /etc/yum.repos.d/*.repo && \
+        sed -i 's/^mirrorlist=/#mirrorlist=/g' /etc/yum.repos.d/*.repo && \
+        sed -i 's|^#baseurl=http://download.example/pub/fedora/linux/|baseurl='$FEDORA_MIRROR'|g' /etc/yum.repos.d/*.repo ; \
+    } ; \
+    # Prepare tools and libs
+    dnf install -yy php-cli \
+        git diffstat gettext git patch patchutils \
+        file less make ncurses pkgconf pkgconf-m4 pkgconf-pkg-config \
+        procps-ng unzip util-linux zip diffutils cpio \
+        re2c perl bison flex autoconf automake cmake \
+        libtool gettext-devel \
+        vim \
+        xz zstd bzip2 tar curl \
+        binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu gcc-c++-aarch64-linux-gnu \
+    && \
+    # Prepare glibc from centos-altarch
+    php /fetch_glibc.php
