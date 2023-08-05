@@ -1,0 +1,97 @@
+
+
+FROM centos:7 AS mirror-setup
+
+ARG CENTOS_MIRROR
+ARG EPEL_MIRROR
+
+# Setup mirrors if specified
+RUN set -xeo pipefail ; \
+    [ -n "$CENTOS_MIRROR" ] && { \
+        sed -i 's/^metalink=/#metalink=/g' /etc/yum.repos.d/*.repo && \
+        sed -i 's/^mirrorlist=/#mirrorlist=/g' /etc/yum.repos.d/*.repo && \
+        sed -i 's|^#baseurl=http://mirror\.centos\.org/centos/|baseurl='$CENTOS_MIRROR'|g' /etc/yum.repos.d/*.repo ; \
+    } ; \
+    yum install -yy epel-release && \
+    [ -n "$EPEL_MIRROR" ]  && { \
+        sed -i 's/^metalink=/#metalink=/g' /etc/yum.repos.d/*.repo && \
+        sed -i 's/^mirrorlist=/#mirrorlist=/g' /etc/yum.repos.d/*.repo && \
+        sed -i 's|^#baseurl=http://download.fedoraproject.org/pub/epel/|baseurl='$EPEL_MIRROR'|g' /etc/yum.repos.d/*.repo ; \
+    }
+
+# Prepare PHP 8.1 and cmake tar for CentOS
+FROM mirror-setup AS tools
+
+ARG PHP_VERSION=8.1.22
+ARG CMAKE_VERSION=3.27.1
+ARG TAR_VERSION=latest
+ARG GNU_MIRROR=https://ftp.gnu.org/gnu/
+
+ADD https://www.php.net/distributions/php-${PHP_VERSION}.tar.xz /usr/src/
+ADD https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz /opt/
+ADD ${GNU_MIRROR}tar/tar-${TAR_VERSION}.tar.xz /usr/src/
+
+RUN set -xeo pipefail ; \
+    # Install dev tools
+    yum install -yy \
+        perl m4 autoconf automake bison byacc \
+        diffstat elfutils flex gettext \
+        libtool make patch patchutils cpp file \
+        glibc-headers glibc-devel kernel-headers less \
+        mpfr nettle zip unzip \
+        re2c libtool gettext-devel \
+        vim \
+        xz zstd bzip2 tar curl && \
+    # Build and install php to /opt
+    mkdir -p /usr/src/php-src && \
+    tar -xf /usr/src/php-${PHP_VERSION}.tar.xz --strip-components=1 -C /usr/src/php-src && \
+    cd /usr/src/php-src && \
+    ./configure \
+        --prefix=/opt/php \
+        --disable-all \
+        --enable-cli && \
+    make -j $(nproc) && \
+    make install && \
+    # Prepare cmake
+    mkdir -p /opt/cmake && \
+    tar -xf /opt/cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz --strip-components=1 -C /opt/cmake && \
+    # Prepare newer gnu tar
+    # curl -sLO https://ftp.gnu.org/gnu/tar/tar-${TAR_VERSION}.tar.xz && \
+    mkdir /usr/src/tar && \
+    tar -xf /usr/src/tar-${TAR_VERSION}.tar.xz --strip-components=1 -C /usr/src/tar && \
+    cd /usr/src/tar && \
+    FORCE_UNSAFE_CONFIGURE=1 ./configure --prefix=/usr && \
+    make -j $(nproc) && \
+    make install DESTDIR=/inst
+
+# Final image
+FROM mirror-setup
+
+LABEL maintainer="Yun Dou <dixyes@gmail.com>"
+LABEL license="MulanPSL-2.0"
+LABEL description="Image for using lwmbs - linux glibc x86_64 native"
+
+ARG LWMBS_BRANCH=master
+ARG LWMBS_REPO=https://github.com/dixyes/lwmbs.git
+
+# Copy tools
+COPY --from=tools /opt/php /opt/cmake /opt/
+COPY --from=tools /inst /
+
+# Prepare tools and fetch lwmbs
+RUN yum install -yy \
+        perl m4 autoconf automake bison byacc cscope ctags \
+        diffstat elfutils flex gettext \
+        git libtool make patch patchutils cpp file \
+        glibc-headers glibc-devel kernel-headers less \
+        mpfr nettle zip unzip \
+        re2c perl-IPC-Cmd devtoolset-11-binutils \
+        devtoolset-11-gcc devtoolset-11-libstdc++-devel \
+        devtoolset-11-gcc-c++ devtoolset-11-make \
+        libtool gettext-devel \
+        vim \
+        glibc-static \
+        xz zstd bzip2 tar curl && \
+    git clone --branch $LWMBS_BRANCH $LWMBS_REPO /lwmbs && \
+    echo > /root/.bashrc && \
+    echo 'export PATH="/opt/php/bin:/opt/cmake/bin:$PATH"' > /root/.bashrc
