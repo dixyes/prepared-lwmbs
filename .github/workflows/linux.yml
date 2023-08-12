@@ -16,5 +16,5 @@ jobs:
         shell: bash
         run: |
           echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ vars.DOCKERHUB_USERNAME }}" --password-stdin
-          python ./upload.py
+          python ./upload.py --override
           rm ~/.docker/config.json

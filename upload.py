@@ -2,6 +2,7 @@
 import argparse
 import os
 import subprocess
+from typing import Optional
 
 if os.environ.get("CI"):
     CENTOS_MIRROR = "https://mirror.facebook.net/centos/"
@@ -45,6 +46,37 @@ types = {
 BUILD_CMD = ("buildx", "build")
 
 
+def getSrcHash(image: str = f"{IMAGE_NAME}:linux-glibc-x86_64") -> Optional[str]:
+    proc = subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            *(
+                ["-e", f"GITHUB_TOKEN={githubToken}"]
+                if (githubToken := os.getenv("GITHUB_TOKEN"))
+                else []
+            ),
+            *(
+                ["-e", f"GITHUB_USER={githubUser}"]
+                if (githubUser := os.getenv("GITHUB_USER"))
+                else []
+            ),
+            image,
+            "php",
+            "/lwmbs/fetch_source.php",
+            "--hash",
+            "",
+            "",
+        ],
+        stdout=subprocess.PIPE,
+    )
+    if proc.returncode != 0:
+        return None
+    else:
+        return proc.stdout.decode().strip()
+
+
 def buildBaseImage(typ: str, buildArgs: list[str]):
     global lwmbsRevision
 
@@ -70,47 +102,34 @@ def buildBaseImage(typ: str, buildArgs: list[str]):
     if proc.returncode != 0:
         raise RuntimeError("build image failed")
 
-    cmd = [
-        "docker",
-        "tag",
-        f"{IMAGE_NAME}:{typ}",
-        f"{IMAGE_NAME}:{typ}-{lwmbsRevision}",
-    ]
-
-    proc = subprocess.run(cmd)
+    proc = subprocess.run(
+        [
+            "docker",
+            "tag",
+            f"{IMAGE_NAME}:{typ}",
+            f"{IMAGE_NAME}:{typ}-{lwmbsRevision}",
+        ]
+    )
     if proc.returncode != 0:
         raise RuntimeError("tag image failed")
 
-    cmd = [
-        "docker",
-        "push",
-        f"{IMAGE_NAME}:{typ}",
-    ]
-
-    proc = subprocess.run(cmd)
+    proc = subprocess.run(["docker", "push", f"{IMAGE_NAME}:{typ}"])
     if proc.returncode != 0:
         raise RuntimeError("push image failed")
 
-    cmd = [
-        "docker",
-        "push",
-        f"{IMAGE_NAME}:{typ}-{lwmbsRevision}",
-    ]
-
-    proc = subprocess.run(cmd)
+    proc = subprocess.run(["docker", "push", f"{IMAGE_NAME}:{typ}-{lwmbsRevision}"])
     if proc.returncode != 0:
         raise RuntimeError("push image failed")
 
 
 def buildSrcImage(typ: str, phpVersion: str):
-    global srcHash
     proc = subprocess.run(
         [
             "docker",
             *BUILD_CMD,
             ".",
             "-t",
-            f"{IMAGE_NAME}:{typ}-src-{srcHash}",
+            f"{IMAGE_NAME}:{typ}-src",
             "-f",
             f"Dockerfile.src",
             "--build-arg",
@@ -129,12 +148,27 @@ def buildSrcImage(typ: str, phpVersion: str):
             ),
         ]
     )
-
     if proc.returncode != 0:
         raise RuntimeError("build image failed")
 
-    cmd = ["docker", "push", f"{IMAGE_NAME}:{typ}-src-{srcHash}"]
+    srcHash = getSrcHash(f"{IMAGE_NAME}:{typ}-src")
 
+    cmd = [
+        "docker",
+        "tag",
+        f"{IMAGE_NAME}:{typ}-src",
+        f"{IMAGE_NAME}:{typ}-src-{srcHash}",
+    ]
+    proc = subprocess.run(cmd)
+    if proc.returncode != 0:
+        raise RuntimeError("tag image failed")
+
+    cmd = ["docker", "push", f"{IMAGE_NAME}:{typ}-src"]
+    proc = subprocess.run(cmd)
+    if proc.returncode != 0:
+        raise RuntimeError("push image failed")
+
+    cmd = ["docker", "push", f"{IMAGE_NAME}:{typ}-src-{srcHash}"]
     proc = subprocess.run(cmd)
     if proc.returncode != 0:
         raise RuntimeError("push image failed")
@@ -142,7 +176,6 @@ def buildSrcImage(typ: str, phpVersion: str):
 
 def mian():
     global lwmbsRevision
-    global srcHash
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -160,36 +193,8 @@ def mian():
         raise RuntimeError("git ls-remote failed")
     lwmbsRevision = proc.stdout.decode().strip().split()[0]
 
-    proc = subprocess.run(
-        [
-            "docker",
-            "run",
-            "--rm",
-            *(
-                ["-e", f"GITHUB_TOKEN={githubToken}"]
-                if (githubToken := os.getenv("GITHUB_TOKEN"))
-                else []
-            ),
-            *(
-                ["-e", f"GITHUB_USER={githubUser}"]
-                if (githubUser := os.getenv("GITHUB_USER"))
-                else []
-            ),
-            f"{IMAGE_NAME}:linux-glibc-x86_64",
-            "php",
-            "/lwmbs/fetch_source.php",
-            "--hash",
-            "",
-            "",
-        ],
-        stdout=subprocess.PIPE,
-    )
-    if proc.returncode != 0:
-        srcHash = None
-    else:
-        srcHash = proc.stdout.decode().strip()
-
     # print(lwmbsRevision)
+    srcHash = getSrcHash()
 
     for typ, args in types.items():
         baseRebuilt = False
@@ -205,17 +210,18 @@ def mian():
             baseRebuilt = True
             buildBaseImage(typ=typ, buildArgs=args)
 
-        proc = subprocess.run(
-            [
-                "docker",
-                "manifest",
-                "inspect",
-                f"{IMAGE_NAME}:{typ}-src-{srcHash}",
-            ]
-        )
-        if srcHash and (baseRebuilt or proc.returncode != 0):
-            for phpVersion in PHP_VERSIONS:
-                buildSrcImage(typ=typ, phpVersion=phpVersion)
+        if srcHash:
+            proc = subprocess.run(
+                [
+                    "docker",
+                    "manifest",
+                    "inspect",
+                    f"{IMAGE_NAME}:{typ}-src-{srcHash}",
+                ]
+            )
+            if baseRebuilt or proc.returncode != 0:
+                for phpVersion in PHP_VERSIONS:
+                    buildSrcImage(typ=typ, phpVersion=phpVersion)
 
 
 if "__main__" == __name__:
