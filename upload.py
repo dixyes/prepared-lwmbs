@@ -157,33 +157,33 @@ def mian():
         raise RuntimeError("git ls-remote failed")
     lwmbsRevision = proc.stdout.decode().strip().split()[0]
 
-    # proc = subprocess.run(
-    #     [
-    #         "docker",
-    #         "run",
-    #         "--rm",
-    #         *(
-    #             ["-e", f"GITHUB_TOKEN={githubToken}"]
-    #             if (githubToken := os.getenv("GITHUB_TOKEN"))
-    #             else []
-    #         ),
-    #         *(
-    #             ["-e", f"GITHUB_USER={githubUser}"]
-    #             if (githubUser := os.getenv("GITHUB_USER"))
-    #             else []
-    #         ),
-    #         f"{IMAGE_NAME}:linux-glibc-x86_64",
-    #         "php",
-    #         "/lwmbs/fetch_source.php",
-    #         "--hash",
-    #         "",
-    #         "",
-    #     ],
-    #     stdout=subprocess.PIPE,
-    # )
-    # if proc.returncode != 0:
-    #     raise RuntimeError("get source hash")
-    # srcHash = proc.stdout.decode().strip()
+    proc = subprocess.run(
+        [
+            "docker",
+            "run",
+            "--rm",
+            *(
+                ["-e", f"GITHUB_TOKEN={githubToken}"]
+                if (githubToken := os.getenv("GITHUB_TOKEN"))
+                else []
+            ),
+            *(
+                ["-e", f"GITHUB_USER={githubUser}"]
+                if (githubUser := os.getenv("GITHUB_USER"))
+                else []
+            ),
+            f"{IMAGE_NAME}:linux-glibc-x86_64",
+            "php",
+            "/lwmbs/fetch_source.php",
+            "--hash",
+            "",
+            "",
+        ],
+        stdout=subprocess.PIPE,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError("get source hash")
+    srcHash = proc.stdout.decode().strip()
 
     # print(scriptsRevision, lwmbsRevision)
 
