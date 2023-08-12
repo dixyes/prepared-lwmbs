@@ -3,6 +3,11 @@ name: Linux build
 on:
   push:
   workflow_dispatch:
+    inputs:
+      override:
+        description: "overrides build"
+        required: false
+        default: ""
 
 jobs:
   linux:
@@ -16,5 +21,9 @@ jobs:
         shell: bash
         run: |
           echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ vars.DOCKERHUB_USERNAME }}" --password-stdin
-          python ./upload.py --override
+          if [ -z "${{ github.event.inputs.override }}" ]; then
+            python ./build.py
+          else
+            python ./build.py --override
+          fi
           rm ~/.docker/config.json
