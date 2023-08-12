@@ -196,7 +196,7 @@ def mian():
     # print(lwmbsRevision)
     srcHash = getSrcHash()
 
-    for typ, args in types.items():
+    for typ, buildArgs in types.items():
         baseRebuilt = False
         proc = subprocess.run(
             [
@@ -208,7 +208,7 @@ def mian():
         )
         if proc.returncode != 0 or args.override:
             baseRebuilt = True
-            buildBaseImage(typ=typ, buildArgs=args)
+            buildBaseImage(typ=typ, buildArgs=buildArgs)
 
         if srcHash:
             proc = subprocess.run(
