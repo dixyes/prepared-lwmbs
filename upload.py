@@ -181,7 +181,6 @@ def mian():
     parser.add_argument(
         "--override",
         help="overrides images",
-        type=bool,
         action="store_true"
     )
 
