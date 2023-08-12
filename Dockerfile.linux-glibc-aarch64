@@ -2,9 +2,9 @@
 
 FROM fedora
 
-LABEL maintainer="Yun Dou <dixyes@gmail.com>"
-LABEL license="MulanPSL-2.0"
-LABEL description="Image for using lwmbs - linux glibc x86_64-aarch64 cross compile"
+LABEL maintainer="Yun Dou <dixyes@gmail.com>" \
+    license="MulanPSL-2.0" \
+    description="Image for using lwmbs - linux glibc x86_64-aarch64 cross compile"
 
 ARG LWMBS_BRANCH=master
 ARG LWMBS_REPO=https://github.com/dixyes/lwmbs.git

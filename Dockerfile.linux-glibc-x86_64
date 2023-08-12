@@ -67,9 +67,9 @@ RUN set -xeo pipefail ; \
 # Final image
 FROM mirror-setup
 
-LABEL maintainer="Yun Dou <dixyes@gmail.com>"
-LABEL license="MulanPSL-2.0"
-LABEL description="Image for using lwmbs - linux glibc x86_64 native"
+LABEL maintainer="Yun Dou <dixyes@gmail.com>" \
+    license="MulanPSL-2.0" \
+    description="Image for using lwmbs - linux glibc x86_64 native"
 
 ARG LWMBS_BRANCH=master
 ARG LWMBS_REPO=https://github.com/dixyes/lwmbs.git
