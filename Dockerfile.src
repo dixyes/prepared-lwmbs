@@ -18,6 +18,6 @@ RUN --mount=type=cache,target=/src,id=lwmbs_src \
     --mount=type=cache,target=/downloads,id=lwmbs_downloads \
     php /lwmbs/fetch_source.php \
         --versionFile=/versionFile \
-        --php_version=${PHP_VERSION} \
+        --phpVer=${PHP_VERSION} \
         ${LWMBS_LIBRARIES} \
         ${LWMBS_EXTENSIONS}
