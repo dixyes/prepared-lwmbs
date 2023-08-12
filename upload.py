@@ -45,7 +45,6 @@ BUILD_CMD = ("buildx", "build")
 
 
 def buildBaseImage(typ: str, buildArgs: list[str]):
-    global scriptsRevision
     global lwmbsRevision
 
     cmd = [
@@ -74,7 +73,7 @@ def buildBaseImage(typ: str, buildArgs: list[str]):
         "docker",
         "tag",
         f"{IMAGE_NAME}:{typ}",
-        f"{IMAGE_NAME}:{typ}-{scriptsRevision}-{lwmbsRevision}",
+        f"{IMAGE_NAME}:{typ}-{lwmbsRevision}",
     ]
 
     proc = subprocess.run(cmd)
@@ -94,7 +93,7 @@ def buildBaseImage(typ: str, buildArgs: list[str]):
     cmd = [
         "docker",
         "push",
-        f"{IMAGE_NAME}:{typ}-{scriptsRevision}-{lwmbsRevision}",
+        f"{IMAGE_NAME}:{typ}-{lwmbsRevision}",
     ]
 
     proc = subprocess.run(cmd)
@@ -141,14 +140,8 @@ def buildSrcImage(typ: str, phpVersion: str):
 
 
 def mian():
-    global scriptsRevision
     global lwmbsRevision
     global srcHash
-
-    proc = subprocess.run(["git", "rev-parse", "HEAD"], stdout=subprocess.PIPE)
-    if proc.returncode != 0:
-        raise RuntimeError("git rev-parse HEAD failed")
-    scriptsRevision = proc.stdout.decode().strip()
 
     proc = subprocess.run(
         ["git", "ls-remote", LWMBS_REPO, LWMBS_BRANCH], stdout=subprocess.PIPE
@@ -185,7 +178,7 @@ def mian():
         raise RuntimeError("get source hash")
     srcHash = proc.stdout.decode().strip()
 
-    # print(scriptsRevision, lwmbsRevision)
+    # print(lwmbsRevision)
 
     for typ, args in types.items():
         baseRebuilt = False
@@ -194,7 +187,7 @@ def mian():
                 "docker",
                 "manifest",
                 "inspect",
-                f"{IMAGE_NAME}:{typ}-{scriptsRevision}-{lwmbsRevision}",
+                f"{IMAGE_NAME}:{typ}-{lwmbsRevision}",
             ]
         )
         if proc.returncode != 0:
