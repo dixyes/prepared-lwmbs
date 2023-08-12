@@ -1,4 +1,4 @@
-
+# syntax=docker/dockerfile
 
 FROM centos:7 AS mirror-setup
 
@@ -31,7 +31,8 @@ ADD https://www.php.net/distributions/php-${PHP_VERSION}.tar.xz /usr/src/
 ADD https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz /opt/
 ADD ${GNU_MIRROR}tar/tar-${TAR_VERSION}.tar.xz /usr/src/
 
-RUN set -xeo pipefail ; \
+RUN --mount=type=cache,target=/var/cache/yum \
+    set -xeo pipefail ; \
     # Install dev tools
     yum install -yy \
         perl m4 autoconf automake bison byacc \
@@ -75,11 +76,13 @@ ARG LWMBS_BRANCH=master
 ARG LWMBS_REPO=https://github.com/dixyes/lwmbs.git
 
 # Copy tools
-COPY --from=tools /opt/php /opt/cmake /opt/
+COPY --from=tools /opt/php /opt/php/
+COPY --from=tools /opt/cmake /opt/cmake/
 COPY --from=tools /inst /
 
 # Prepare tools and fetch lwmbs
-RUN yum install -yy \
+RUN --mount=type=cache,target=/var/cache/yum \
+    yum install -yy \
         perl m4 autoconf automake bison byacc cscope ctags \
         diffstat elfutils flex gettext \
         git libtool make patch patchutils cpp file \

@@ -1,4 +1,4 @@
-
+# syntax=docker/dockerfile
 
 FROM fedora
 
@@ -14,7 +14,8 @@ ARG CENTOS_ALTARCH_MIRROR
 
 COPY fetch_glibc.php /
 
-RUN set -xeo pipefail ; \
+RUN --mount=type=cache,target=/var/cache/yum \
+    set -xeo pipefail ; \
     find /etc/yum.repos.d -name "*cisco*.repo" -exec rm {} \; && \
     # Setup mirrors if specified
     [ -n "$FEDORA_MIRROR" ] && { \
