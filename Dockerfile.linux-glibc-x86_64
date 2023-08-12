@@ -95,9 +95,9 @@ RUN --mount=type=cache,target=/var/cache/yum \
         vim \
         glibc-static \
         xz zstd bzip2 tar curl && \
-    git clone --branch $LWMBS_BRANCH $LWMBS_REPO /lwmbs && \
-    echo > /root/.bashrc && \
-    echo 'export PATH="/opt/php/bin:/opt/cmake/bin:$PATH"' > /root/.bashrc
+    git clone --branch $LWMBS_BRANCH $LWMBS_REPO /lwmbs
+
+ENV PATH="/opt/cmake/bin:/opt/php/bin:${PATH}"
 
 WORKDIR /
 
