@@ -1,4 +1,5 @@
-#!/usr/bin/env pyhon3
+#!/usr/bin/env python3
+import argparse
 import os
 import subprocess
 
@@ -143,6 +144,15 @@ def mian():
     global lwmbsRevision
     global srcHash
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--override",
+        help="overrides images",
+        type=bool,
+    )
+
+    args = parser.parse_args()
+
     proc = subprocess.run(
         ["git", "ls-remote", LWMBS_REPO, LWMBS_BRANCH], stdout=subprocess.PIPE
     )
@@ -175,8 +185,9 @@ def mian():
         stdout=subprocess.PIPE,
     )
     if proc.returncode != 0:
-        raise RuntimeError("get source hash")
-    srcHash = proc.stdout.decode().strip()
+        srcHash = None
+    else:
+        srcHash = proc.stdout.decode().strip()
 
     # print(lwmbsRevision)
 
@@ -190,7 +201,7 @@ def mian():
                 f"{IMAGE_NAME}:{typ}-{lwmbsRevision}",
             ]
         )
-        if proc.returncode != 0:
+        if proc.returncode != 0 or args.override:
             baseRebuilt = True
             buildBaseImage(typ=typ, buildArgs=args)
 
@@ -202,7 +213,7 @@ def mian():
                 f"{IMAGE_NAME}:{typ}-src-{srcHash}",
             ]
         )
-        if baseRebuilt or proc.returncode != 0:
+        if srcHash and (baseRebuilt or proc.returncode != 0):
             for phpVersion in PHP_VERSIONS:
                 buildSrcImage(typ=typ, phpVersion=phpVersion)
 
