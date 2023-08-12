@@ -182,6 +182,7 @@ def mian():
         "--override",
         help="overrides images",
         type=bool,
+        action="store_true"
     )
 
     args = parser.parse_args()
