@@ -25,9 +25,9 @@ LWMBS_BRANCH = os.getenv("LWMBS_BRANCH", "master")
 IMAGE_NAME = os.getenv("IMAGE_NAME", "dixyes/prepared-lwmbs")
 
 PHP_VERSIONS = (
-    "80",
-    "81",
-    "82",
+    "8.0",
+    "8.1",
+    "8.2",
 )
 
 types = {
