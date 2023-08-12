@@ -98,4 +98,6 @@ RUN yum install -yy \
 
 WORKDIR /
 
-ENTRYPOINT [ "/bin/bash" ]
+ENTRYPOINT []
+
+CMD [ "/bin/bash" ]
