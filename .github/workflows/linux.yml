@@ -22,8 +22,8 @@ jobs:
         run: |
           echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ vars.DOCKERHUB_USERNAME }}" --password-stdin
           if [ -z "${{ github.event.inputs.override }}" ]; then
-            python ./build.py
+            python ./upload.py
           else
-            python ./build.py --override
+            python ./upload.py --override
           fi
           rm ~/.docker/config.json
