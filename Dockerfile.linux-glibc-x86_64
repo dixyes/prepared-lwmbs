@@ -95,3 +95,7 @@ RUN yum install -yy \
     git clone --branch $LWMBS_BRANCH $LWMBS_REPO /lwmbs && \
     echo > /root/.bashrc && \
     echo 'export PATH="/opt/php/bin:/opt/cmake/bin:$PATH"' > /root/.bashrc
+
+WORKDIR /
+
+ENTRYPOINT [ "/bin/bash" ]

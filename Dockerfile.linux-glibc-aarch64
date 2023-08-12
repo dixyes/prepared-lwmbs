@@ -37,3 +37,7 @@ RUN set -xeo pipefail ; \
     php /fetch_glibc.php && \
     # Fetch lwmbs
     git clone --branch $LWMBS_BRANCH $LWMBS_REPO /lwmbs
+
+WORKDIR /
+
+ENTRYPOINT [ "/bin/bash" ]
