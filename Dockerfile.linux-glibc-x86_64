@@ -12,18 +12,18 @@ RUN --mount=type=cache,target=/var/cache/yum \
     [ -n "$CENTOS_MIRROR" ] && { \
         sed -i 's/^metalink=/#metalink=/g' /etc/yum.repos.d/*.repo && \
         sed -i 's/^mirrorlist=/#mirrorlist=/g' /etc/yum.repos.d/*.repo && \
-        sed -i 's|^#baseurl=http://mirror\.centos\.org/centos/|baseurl='$CENTOS_MIRROR'|g' /etc/yum.repos.d/*.repo ; \
+        sed -i 's|^#\s*baseurl=http://mirror\.centos\.org/centos/|baseurl='$CENTOS_MIRROR'|g' /etc/yum.repos.d/*.repo ; \
     } ; \
     yum install -yy epel-release centos-release-scl && \
     [ -n "$EPEL_MIRROR" ]  && { \
         sed -i 's/^metalink=/#metalink=/g' /etc/yum.repos.d/*.repo && \
         sed -i 's/^mirrorlist=/#mirrorlist=/g' /etc/yum.repos.d/*.repo && \
-        sed -i 's|^#baseurl=http://download.fedoraproject.org/pub/epel/|baseurl='$EPEL_MIRROR'|g' /etc/yum.repos.d/*.repo ; \
+        sed -i 's|^#\s*baseurl=http://download.fedoraproject.org/pub/epel/|baseurl='$EPEL_MIRROR'|g' /etc/yum.repos.d/*.repo ; \
     } ; \
     [ -n "$SCLO_MIRROR" ]  && { \
         sed -i 's/^metalink=/#metalink=/g' /etc/yum.repos.d/*.repo && \
         sed -i 's/^mirrorlist=/#mirrorlist=/g' /etc/yum.repos.d/*.repo && \
-        sed -i 's|^#baseurl=http://mirror\.centos\.org/centos/7/sclo/|baseurl='$SCLO_MIRROR'|g' /etc/yum.repos.d/*.repo ; \
+        sed -i 's|^#\s*baseurl=http://mirror\.centos\.org/centos/7/sclo/|baseurl='$SCLO_MIRROR'|g' /etc/yum.repos.d/*.repo ; \
     }
 
 # Prepare PHP 8.1 and cmake tar for CentOS
