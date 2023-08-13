@@ -15,9 +15,7 @@ LABEL maintainer="Yun Dou <dixyes@gmail.com>" \
     description="Image for using lwmbs - ${BASE_TAG} with src"
 #                                        ^ i know this donot work
 
-RUN --mount=type=cache,target=/src,id=lwmbs_src \
-    --mount=type=cache,target=/downloads,id=lwmbs_downloads \
-    set -xeo pipefail ; \
+RUN set -xeo pipefail ; \
     php /lwmbs/fetch_source.php \
         --versionFile=/versionFile \
         --phpVer=${PHP_VERSION} \
