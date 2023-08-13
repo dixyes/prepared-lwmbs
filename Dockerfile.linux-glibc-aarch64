@@ -21,9 +21,9 @@ RUN --mount=type=cache,target=/var/cache/yum \
     [ -n "$FEDORA_MIRROR" ] && { \
         sed -i 's/^metalink=/#metalink=/g' /etc/yum.repos.d/*.repo && \
         sed -i 's/^mirrorlist=/#mirrorlist=/g' /etc/yum.repos.d/*.repo && \
-        sed -i 's|^#baseurl=http://download.example/pub/fedora/linux/|baseurl='$FEDORA_MIRROR'|g' /etc/yum.repos.d/*.repo ; \
+        sed -i 's|^#baseurl=http://download.example/pub/fedora/linux/|baseurl='$FEDORA_MIRROR'|g' /etc/yum.repos.d/*.repo && \
+        dnf config-manager --save --setopt zchunk=False ; \
     } ; \
-    dnf makecache && \
     # Prepare tools and libs
     dnf install -yy php-cli \
         git diffstat gettext git patch patchutils \
