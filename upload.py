@@ -199,7 +199,7 @@ def mian():
                 "docker",
                 "manifest",
                 "inspect",
-                f"{IMAGE_NAME}:{typ}-{lwmbsRevision}",
+                f"{IMAGE_NAME_CHECK}:{typ}-{lwmbsRevision}",
             ]
         )
         if proc.returncode != 0 or args.override:
@@ -212,7 +212,7 @@ def mian():
                     "docker",
                     "manifest",
                     "inspect",
-                    f"{IMAGE_NAME}:{typ}-src-{srcHash}",
+                    f"{IMAGE_NAME_CHECK}:{typ}-src-{srcHash}",
                 ]
             )
             if baseRebuilt or proc.returncode != 0:
