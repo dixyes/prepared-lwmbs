@@ -4,7 +4,15 @@ import os
 import subprocess
 from typing import Optional
 
+LWMBS_REPO = os.getenv("LWMBS_REPO", "https://github.com/dixyes/lwmbs")
+LWMBS_BRANCH = os.getenv("LWMBS_BRANCH", "master")
+IMAGE_NAME = os.getenv("IMAGE_NAME", "dixyes/prepared-lwmbs")
+IMAGE_NAME_GHCR = os.getenv("IMAGE_NAME_GHCR", f"ghcr.io/{IMAGE_NAME}")
+
+PHP_VERSION = "8.2"
+
 if os.environ.get("CI"):
+    IMAGE_NAME_CHECK = IMAGE_NAME_GHCR
     CENTOS_MIRROR = "https://mirror.facebook.net/centos/"
     EPEL_MIRROR = "https://mirror.facebook.net/fedora/epel/"
     SCLO_MIRROR = "https://mirror.facebook.net/centos/7/sclo/"
@@ -13,19 +21,13 @@ if os.environ.get("CI"):
     # FEDORA_MIRROR = ""
     CENTOS_ALTARCH_MIRROR = "https://mirror.facebook.net/centos-altarch/"
 else:
+    IMAGE_NAME_CHECK = IMAGE_NAME
     CENTOS_MIRROR = "https://mirrors.ustc.edu.cn/centos/"
     EPEL_MIRROR = "https://mirrors.ustc.edu.cn/epel/"
     SCLO_MIRROR = "https://mirrors.ustc.edu.cn/centos/7/sclo/"
     GNU_MIRROR = "https://mirrors.ustc.edu.cn/gnu/"
     FEDORA_MIRROR = "https://mirrors.ustc.edu.cn/fedora/"
     CENTOS_ALTARCH_MIRROR = "https://mirrors.ustc.edu.cn/centos-altarch/"
-
-
-LWMBS_REPO = os.getenv("LWMBS_REPO", "https://github.com/dixyes/lwmbs")
-LWMBS_BRANCH = os.getenv("LWMBS_BRANCH", "master")
-IMAGE_NAME = os.getenv("IMAGE_NAME", "dixyes/prepared-lwmbs")
-
-PHP_VERSION = "8.2"
 
 types = {
     "linux-glibc-x86_64": {
@@ -43,7 +45,7 @@ types = {
 BUILD_CMD = ("buildx", "build")
 
 
-def getSrcHash(image: str = f"{IMAGE_NAME}:linux-glibc-x86_64") -> Optional[str]:
+def getSrcHash(image: str = f"{IMAGE_NAME_CHECK}:linux-glibc-x86_64") -> Optional[str]:
     proc = subprocess.run(
         [
             "docker",
@@ -99,24 +101,25 @@ def buildBaseImage(typ: str, buildArgs: list[str]):
     if proc.returncode != 0:
         raise RuntimeError("build image failed")
 
-    proc = subprocess.run(
-        [
-            "docker",
-            "tag",
-            f"{IMAGE_NAME}:{typ}",
-            f"{IMAGE_NAME}:{typ}-{lwmbsRevision}",
-        ]
-    )
-    if proc.returncode != 0:
-        raise RuntimeError("tag image failed")
+    for tag in (
+        f"{IMAGE_NAME}:{typ}-{lwmbsRevision}",
+        f"{IMAGE_NAME_GHCR}:{typ}",
+        f"{IMAGE_NAME_GHCR}:{typ}-{lwmbsRevision}",
+    ):
+        proc = subprocess.run(
+            [
+                "docker",
+                "tag",
+                f"{IMAGE_NAME}:{typ}",
+                tag,
+            ]
+        )
+        if proc.returncode != 0:
+            raise RuntimeError(f"tag image {tag} failed")
 
-    proc = subprocess.run(["docker", "push", f"{IMAGE_NAME}:{typ}"])
-    if proc.returncode != 0:
-        raise RuntimeError("push image failed")
-
-    proc = subprocess.run(["docker", "push", f"{IMAGE_NAME}:{typ}-{lwmbsRevision}"])
-    if proc.returncode != 0:
-        raise RuntimeError("push image failed")
+        proc = subprocess.run(["docker", "push", tag])
+        if proc.returncode != 0:
+            raise RuntimeError(f"push image {tag} failed")
 
 
 def buildSrcImage(typ: str, phpVersion: str):
@@ -148,38 +151,34 @@ def buildSrcImage(typ: str, phpVersion: str):
     if proc.returncode != 0:
         raise RuntimeError("build image failed")
 
-    srcHash = getSrcHash(f"{IMAGE_NAME}:{typ}-src")
+    srcHash = getSrcHash(f"{IMAGE_NAME_CHECK}:{typ}-src")
 
-    cmd = [
-        "docker",
-        "tag",
-        f"{IMAGE_NAME}:{typ}-src",
+    for tag in (
         f"{IMAGE_NAME}:{typ}-src-{srcHash}",
-    ]
-    proc = subprocess.run(cmd)
-    if proc.returncode != 0:
-        raise RuntimeError("tag image failed")
+        f"{IMAGE_NAME_GHCR}:{typ}-src",
+        f"{IMAGE_NAME_GHCR}:{typ}-src-{srcHash}",
+    ):
+        proc = subprocess.run(
+            [
+                "docker",
+                "tag",
+                f"{IMAGE_NAME}:{typ}-src",
+                tag,
+            ]
+        )
+        if proc.returncode != 0:
+            raise RuntimeError(f"tag image {tag} failed")
 
-    cmd = ["docker", "push", f"{IMAGE_NAME}:{typ}-src"]
-    proc = subprocess.run(cmd)
-    if proc.returncode != 0:
-        raise RuntimeError("push image failed")
-
-    cmd = ["docker", "push", f"{IMAGE_NAME}:{typ}-src-{srcHash}"]
-    proc = subprocess.run(cmd)
-    if proc.returncode != 0:
-        raise RuntimeError("push image failed")
+        proc = subprocess.run(["docker", "push", tag])
+        if proc.returncode != 0:
+            raise RuntimeError(f"push image {tag} failed")
 
 
 def mian():
     global lwmbsRevision
 
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--override",
-        help="overrides images",
-        action="store_true"
-    )
+    parser.add_argument("--override", help="overrides images", action="store_true")
 
     args = parser.parse_args()
 
@@ -218,7 +217,7 @@ def mian():
             )
             if baseRebuilt or proc.returncode != 0:
                 # for phpVersion in PHP_VERSIONS:
-                    # buildSrcImage(typ=typ, phpVersion=phpVersion)
+                # buildSrcImage(typ=typ, phpVersion=phpVersion)
                 buildSrcImage(typ=typ, phpVersion=PHP_VERSION)
 
 
