@@ -98,6 +98,8 @@ RUN --mount=type=cache,target=/var/cache/yum \
     git clone --branch $LWMBS_BRANCH $LWMBS_REPO /lwmbs
 
 ENV PATH="/opt/cmake/bin:/opt/php/bin:${PATH}"
+ENV LWMBS_CC=gcc
+ENV LWMBS_CXX=g++
 
 WORKDIR /
 

@@ -40,6 +40,9 @@ RUN --mount=type=cache,target=/var/cache/yum \
     # Fetch lwmbs
     git clone --branch $LWMBS_BRANCH $LWMBS_REPO /lwmbs
 
+ENV LWMBS_CC=aarch64-linux-gnu-gcc
+ENV LWMBS_CXX=aarch64-linux-gnu-g++
+
 WORKDIR /
 
 ENTRYPOINT []
