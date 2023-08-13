@@ -21,6 +21,7 @@ jobs:
         shell: bash
         run: |
           echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ vars.DOCKERHUB_USERNAME }}" --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login -u "${{ github.actor }}" "ghcr.io" --password-stdin
           export "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}"
           if [ -z "${{ github.event.inputs.override }}" ]; then
             python ./upload.py
