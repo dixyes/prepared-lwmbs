@@ -25,11 +25,7 @@ LWMBS_REPO = os.getenv("LWMBS_REPO", "https://github.com/dixyes/lwmbs")
 LWMBS_BRANCH = os.getenv("LWMBS_BRANCH", "master")
 IMAGE_NAME = os.getenv("IMAGE_NAME", "dixyes/prepared-lwmbs")
 
-PHP_VERSIONS = (
-    "8.0",
-    "8.1",
-    "8.2",
-)
+PHP_VERSION = "8.2"
 
 types = {
     "linux-glibc-x86_64": {
@@ -221,8 +217,9 @@ def mian():
                 ]
             )
             if baseRebuilt or proc.returncode != 0:
-                for phpVersion in PHP_VERSIONS:
-                    buildSrcImage(typ=typ, phpVersion=phpVersion)
+                # for phpVersion in PHP_VERSIONS:
+                    # buildSrcImage(typ=typ, phpVersion=phpVersion)
+                buildSrcImage(typ=typ, phpVersion=PHP_VERSION)
 
 
 if "__main__" == __name__:
