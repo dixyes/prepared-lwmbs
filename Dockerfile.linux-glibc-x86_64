@@ -6,7 +6,8 @@ ARG CENTOS_MIRROR
 ARG EPEL_MIRROR
 
 # Setup mirrors if specified
-RUN set -xeo pipefail ; \
+RUN --mount=type=cache,target=/var/cache/yum \
+    set -xeo pipefail ; \
     [ -n "$CENTOS_MIRROR" ] && { \
         sed -i 's/^metalink=/#metalink=/g' /etc/yum.repos.d/*.repo && \
         sed -i 's/^mirrorlist=/#mirrorlist=/g' /etc/yum.repos.d/*.repo && \
