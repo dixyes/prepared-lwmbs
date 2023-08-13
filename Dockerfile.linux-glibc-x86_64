@@ -98,7 +98,7 @@ RUN --mount=type=cache,target=/var/cache/yum \
         xz zstd bzip2 tar curl && \
     git clone --branch $LWMBS_BRANCH $LWMBS_REPO /lwmbs
 
-ENV PATH="/opt/cmake/bin:/opt/php/bin:${PATH}"
+ENV PATH="/opt/rh/devtoolset-11/root/usr/bin:/opt/cmake/bin:/opt/php/bin:${PATH}"
 ENV LWMBS_CC=gcc
 ENV LWMBS_CXX=g++
 
