@@ -151,7 +151,7 @@ def buildSrcImage(typ: str, phpVersion: str):
     if proc.returncode != 0:
         raise RuntimeError("build image failed")
 
-    srcHash = getSrcHash(f"{IMAGE_NAME_CHECK}:{typ}-src")
+    srcHash = getSrcHash(f"{IMAGE_NAME}:{typ}-src")
 
     for tag in (
         f"{IMAGE_NAME}:{typ}-src-{srcHash}",
