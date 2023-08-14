@@ -26,7 +26,8 @@ RUN --mount=type=cache,target=/var/cache/apk \
     && \
     mkdir -p downloads && \
     curl -o downloads/aarch64-linux-musl-cross.tgz https://musl.cc/aarch64-linux-musl-cross.tgz && \
-    tar -xvf downloads/aarch64-linux-musl-cross.tgz -C / --strip-components=1 && \
+    tar -xvf downloads/aarch64-linux-musl-cross.tgz -C / --strip-components=1 --exclude 'aarch64-linux-musl-cross/usr' && \
+    rm downloads/aarch64-linux-musl-cross.tgz && \
     # Alias php
     ln -sf /usr/bin/php81 /usr/bin/php && \
     # Fetch lwmbs
