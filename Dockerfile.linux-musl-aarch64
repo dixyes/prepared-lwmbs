@@ -1,0 +1,42 @@
+# syntax=docker/dockerfile
+
+FROM alpine
+
+LABEL maintainer="Yun Dou <dixyes@gmail.com>" \
+    license="MulanPSL-2.0" \
+    description="Image for using lwmbs - linux musl x86_64-aarch64 cross compile"
+
+ARG LWMBS_BRANCH=master
+ARG LWMBS_REPO=https://github.com/dixyes/lwmbs.git
+
+ARG ALPINE_MIRROR
+
+RUN --mount=type=cache,target=/var/cache/apk \
+    set -xeo pipefail ; \
+    # Setup mirrors if specified
+    [ -n "$ALPINE_MIRROR" ] && { \
+        sed -i 's|^http://dl-cdn.alpinelinux.org/|'$ALPINE_MIRROR'|g' /etc/apk/repositories ; \
+    } ; \
+    # Prepare tools and libs
+    apk add --no-cache \
+        php81 curl xz tar bzip2 zstd \
+        alpine-sdk automake autoconf bison flex re2c cmake \
+        libtool gettext-dev git \
+        vim \
+    && \
+    mkdir -p downloads && \
+    curl -o downloads/aarch64-linux-musl-cross.tgz https://musl.cc/aarch64-linux-musl-cross.tgz && \
+    tar -xvf downloads/aarch64-linux-musl-cross.tgz -C / --strip-components=1 && \
+    # Alias php
+    ln -sf /usr/bin/php81 /usr/bin/php && \
+    # Fetch lwmbs
+    git clone --branch $LWMBS_BRANCH $LWMBS_REPO /lwmbs
+
+ENV LWMBS_CC=aarch64-linux-musl-gcc
+ENV LWMBS_CXX=aarch64-linux-musl-g++
+
+WORKDIR /
+
+ENTRYPOINT []
+
+CMD [ "/bin/sh" ]

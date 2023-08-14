@@ -20,6 +20,7 @@ if os.environ.get("CI"):
     FEDORA_MIRROR = "https://mirror.facebook.net/fedora/linux/"
     # FEDORA_MIRROR = ""
     CENTOS_ALTARCH_MIRROR = "https://mirror.facebook.net/centos-altarch/"
+    ALPINE_MIRROR = "https://mirror.facebook.net/alpine/"
 else:
     IMAGE_NAME_CHECK = IMAGE_NAME
     CENTOS_MIRROR = "https://mirrors.ustc.edu.cn/centos/"
@@ -28,6 +29,7 @@ else:
     GNU_MIRROR = "https://mirrors.ustc.edu.cn/gnu/"
     FEDORA_MIRROR = "https://mirrors.ustc.edu.cn/fedora/"
     CENTOS_ALTARCH_MIRROR = "https://mirrors.ustc.edu.cn/centos-altarch/"
+    ALPINE_MIRROR = "https://mirrors.ustc.edu.cn/alpine/"
 
 types = {
     "linux-glibc-x86_64": {
@@ -39,6 +41,12 @@ types = {
     "linux-glibc-aarch64": {
         "FEDORA_MIRROR": FEDORA_MIRROR,
         "CENTOS_ALTARCH_MIRROR": CENTOS_ALTARCH_MIRROR,
+    },
+    "linux-musl-x86_64": {
+        "ALPINE_MIRROR": ALPINE_MIRROR,
+    },
+    "linux-musl-aarch64": {
+        "ALPINE_MIRROR": ALPINE_MIRROR,
     },
 }
 
