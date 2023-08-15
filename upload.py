@@ -17,8 +17,8 @@ if os.environ.get("CI"):
     EPEL_MIRROR = "https://mirror.facebook.net/fedora/epel/"
     SCLO_MIRROR = "https://mirror.facebook.net/centos/7/sclo/"
     GNU_MIRROR = "https://mirror.facebook.net/gnu/"
-    FEDORA_MIRROR = "https://mirror.facebook.net/fedora/linux/"
-    # FEDORA_MIRROR = ""
+    # FEDORA_MIRROR = "https://mirror.facebook.net/fedora/linux/"
+    FEDORA_MIRROR = ""
     CENTOS_ALTARCH_MIRROR = "https://mirror.facebook.net/centos-altarch/"
     ALPINE_MIRROR = "https://mirror.facebook.net/alpine/"
 else:
