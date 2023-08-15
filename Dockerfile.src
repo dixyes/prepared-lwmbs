@@ -2,7 +2,7 @@
 
 ARG BASE_TAG
 
-FROM dixyes/prepared-lwmbs:${BASE_TAG}
+FROM ghcr.io/dixyes/prepared-lwmbs:${BASE_TAG}
 
 ARG PHP_VERSION
 
@@ -15,7 +15,9 @@ LABEL maintainer="Yun Dou <dixyes@gmail.com>" \
     description="Image for using lwmbs - ${BASE_TAG} with src"
 #                                        ^ i know this donot work
 
-RUN set -xeo pipefail ; \
+RUN --mount=type=secret,id=ghtoken \
+    set -xeo pipefail ; \
+    export GTIHUB_TOKEN=$(cat /run/secrets/ghtoken || :) ; \
     php /lwmbs/fetch_source.php \
         --versionFile=/versionFile \
         --phpVer=${PHP_VERSION} \

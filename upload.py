@@ -145,13 +145,8 @@ def buildSrcImage(typ: str, phpVersion: str):
             "--build-arg",
             f"BASE_TAG={typ}",
             *(
-                ["--build-arg", f"GITHUB_TOKEN={githubToken}"]
-                if (githubToken := os.getenv("GITHUB_TOKEN"))
-                else []
-            ),
-            *(
-                ["--build-arg", f"GITHUB_USER={githubUser}"]
-                if (githubUser := os.getenv("GITHUB_USER"))
+                ["--secret", f"id=ghtoken,src=/tmp/ghtoken"]
+                if os.getenv("GITHUB_TOKEN")
                 else []
             ),
         ]
@@ -199,6 +194,10 @@ def mian():
 
     # print(lwmbsRevision)
     srcHash = getSrcHash()
+
+    if os.environ.get("GITHUB_TOKEN"):
+        with os.open("/tmp/ghtoken", os.O_WRONLY, 0o600) as f:
+            f.write(os.environ["GITHUB_TOKEN"])
 
     for typ, buildArgs in types.items():
         baseRebuilt = False
