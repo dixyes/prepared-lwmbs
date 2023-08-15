@@ -196,7 +196,7 @@ def mian():
     srcHash = getSrcHash()
 
     if os.environ.get("GITHUB_TOKEN"):
-        with os.fdopen(os.open("/tmp/ghtoken", os.O_CREAT | os.O_WRONLY, 0o600)) as f:
+        with os.fdopen(os.open("/tmp/ghtoken", os.O_CREAT | os.O_WRONLY, 0o600), 'w') as f:
             f.write(os.environ["GITHUB_TOKEN"])
 
     for typ, buildArgs in types.items():
