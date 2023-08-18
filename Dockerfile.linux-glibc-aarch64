@@ -14,7 +14,7 @@ ARG CENTOS_ALTARCH_MIRROR
 
 COPY fetch_glibc.php /
 
-RUN --mount=type=cache,target=/var/cache/yum \
+RUN --mount=type=cache,id=lwmbs-fedora,target=/var/cache/yum \
     set -xeo pipefail ; \
     find /etc/yum.repos.d -name "*cisco*.repo" -exec rm {} \; && \
     # Setup mirrors if specified

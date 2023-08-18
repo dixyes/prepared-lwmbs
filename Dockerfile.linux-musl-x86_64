@@ -11,7 +11,7 @@ ARG LWMBS_REPO=https://github.com/dixyes/lwmbs.git
 
 ARG ALPINE_MIRROR
 
-RUN --mount=type=cache,target=/var/cache/apk \
+RUN --mount=type=cache,id=lwmbs-alpine,target=/var/cache/apk \
     set -xeo pipefail ; \
     # Setup mirrors if specified
     [ -n "$ALPINE_MIRROR" ] && { \

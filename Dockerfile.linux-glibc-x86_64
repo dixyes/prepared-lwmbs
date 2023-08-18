@@ -7,7 +7,7 @@ ARG EPEL_MIRROR
 ARG SCLO_MIRROR
 
 # Setup mirrors if specified
-RUN --mount=type=cache,target=/var/cache/yum \
+RUN --mount=type=cache,id=lwmbs-centos7,target=/var/cache/yum \
     set -xeo pipefail ; \
     [ -n "$CENTOS_MIRROR" ] && { \
         sed -i 's/^metalink=/#metalink=/g' /etc/yum.repos.d/*.repo && \
@@ -38,7 +38,7 @@ ADD https://www.php.net/distributions/php-${PHP_VERSION}.tar.xz /usr/src/
 ADD https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz /opt/
 ADD ${GNU_MIRROR}tar/tar-${TAR_VERSION}.tar.xz /usr/src/
 
-RUN --mount=type=cache,target=/var/cache/yum \
+RUN --mount=type=cache,id=lwmbs-centos7,target=/var/cache/yum \
     set -xeo pipefail ; \
     # Install dev tools
     yum install -yy \
@@ -88,7 +88,7 @@ COPY --from=tools /opt/cmake /opt/cmake/
 COPY --from=tools /inst /
 
 # Prepare tools and fetch lwmbs
-RUN --mount=type=cache,target=/var/cache/yum \
+RUN --mount=type=cache,id=lwmbs-centos7,target=/var/cache/yum \
     yum install -yy \
         perl m4 autoconf automake bison byacc cscope ctags \
         diffstat elfutils flex gettext \
