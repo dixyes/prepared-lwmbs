@@ -31,25 +31,37 @@ FROM mirror-setup AS tools
 
 ARG PHP_VERSION=8.1.22
 ARG CMAKE_VERSION=3.27.1
+ARG RE2C_VERSION=3.1
 ARG TAR_VERSION=latest
 ARG GNU_MIRROR=https://ftp.gnu.org/gnu/
 
 ADD https://www.php.net/distributions/php-${PHP_VERSION}.tar.xz /usr/src/
 ADD https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz /opt/
 ADD ${GNU_MIRROR}tar/tar-${TAR_VERSION}.tar.xz /usr/src/
+ADD https://github.com/skvadrik/re2c/releases/download/${RE2C_VERSION}/re2c-${RE2C_VERSION}.tar.xz /usr/src/
 
 RUN --mount=type=cache,id=lwmbs-centos7,target=/var/cache/yum \
     set -xeo pipefail ; \
     # Install dev tools
     yum install -yy \
-        perl m4 autoconf automake bison byacc \
+        perl m4 autoconf automake bison byacc gcc gcc-c++ \
         diffstat elfutils flex gettext \
         libtool make patch patchutils cpp file \
         glibc-headers glibc-devel kernel-headers less \
         mpfr nettle zip unzip \
-        re2c libtool gettext-devel \
+        libtool gettext-devel \
         vim \
         xz zstd bzip2 tar curl && \
+    # Build and install re2c to /opt
+    mkdir -p /usr/src/re2c && \
+    tar -xf /usr/src/re2c-${RE2C_VERSION}.tar.xz --strip-components=1 -C /usr/src/re2c && \
+    cd /usr/src/re2c && \
+    sed -i 's/AM_PATH_PYTHON(\[3.7\])//g' configure.ac && \
+    ./autogen.sh && \
+    ./configure --prefix=/opt/re2c && \
+    make -j $(nproc) && \
+    make install && \
+    export PATH="/opt/re2c/bin:${PATH}" && \
     # Build and install php to /opt
     mkdir -p /usr/src/php-src && \
     tar -xf /usr/src/php-${PHP_VERSION}.tar.xz --strip-components=1 -C /usr/src/php-src && \
@@ -85,6 +97,7 @@ ARG LWMBS_REPO=https://github.com/dixyes/lwmbs.git
 # Copy tools
 COPY --from=tools /opt/php /opt/php/
 COPY --from=tools /opt/cmake /opt/cmake/
+COPY --from=tools /opt/re2c /opt/re2c/
 COPY --from=tools /inst /
 
 # Prepare tools and fetch lwmbs
@@ -95,7 +108,7 @@ RUN --mount=type=cache,id=lwmbs-centos7,target=/var/cache/yum \
         git libtool make patch patchutils cpp file \
         glibc-headers glibc-devel kernel-headers less \
         mpfr nettle zip unzip \
-        re2c perl-IPC-Cmd devtoolset-11-binutils \
+        perl-IPC-Cmd devtoolset-11-binutils \
         devtoolset-11-gcc devtoolset-11-libstdc++-devel \
         devtoolset-11-gcc-c++ devtoolset-11-make \
         libtool gettext-devel \
@@ -104,7 +117,7 @@ RUN --mount=type=cache,id=lwmbs-centos7,target=/var/cache/yum \
         xz zstd bzip2 tar curl && \
     git clone --branch $LWMBS_BRANCH $LWMBS_REPO /lwmbs
 
-ENV PATH="/opt/rh/devtoolset-11/root/usr/bin:/opt/cmake/bin:/opt/php/bin:${PATH}"
+ENV PATH="/opt/rh/devtoolset-11/root/usr/bin:/opt/cmake/bin:/opt/re2c/bin:/opt/php/bin:${PATH}"
 ENV LWMBS_CC=gcc
 ENV LWMBS_CXX=g++
 
