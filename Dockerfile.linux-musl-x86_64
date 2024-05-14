@@ -26,7 +26,7 @@ RUN --mount=type=cache,id=lwmbs-alpine,target=/var/cache/apk \
         zlib-static zlib-dev \
         bzip2 bzip2-static bzip2-dev \
         zstd \
-        nodejs \
+        nodejs npm \
     && \
     # Alias php
     ln -sf /usr/bin/php81 /usr/bin/php && \
