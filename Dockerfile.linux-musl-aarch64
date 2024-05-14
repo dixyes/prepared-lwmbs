@@ -23,6 +23,7 @@ RUN --mount=type=cache,id=lwmbs-alpine,target=/var/cache/apk \
         alpine-sdk automake autoconf bison flex re2c cmake \
         libtool gettext-dev git \
         vim \
+        nodejs \
     && \
     mkdir -p downloads && \
     curl -o downloads/aarch64-linux-musl-cross.tgz https://musl.cc/aarch64-linux-musl-cross.tgz && \

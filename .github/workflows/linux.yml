@@ -24,7 +24,7 @@ jobs:
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login -u "${{ github.actor }}" "ghcr.io" --password-stdin
           export "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}"
           if [ -z "${{ github.event.inputs.override }}" ]; then
-            python ./upload.py
+            python ./upload.py --baseOnly
           else
             python ./upload.py --override
           fi

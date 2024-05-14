@@ -182,6 +182,7 @@ def mian():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--override", help="overrides images", action="store_true")
+    parser.add_argument("--baseOnly", help="build base images opnly", action="store_true")
 
     args = parser.parse_args()
 
@@ -193,13 +194,20 @@ def mian():
     lwmbsRevision = proc.stdout.decode().strip().split()[0]
 
     # print(lwmbsRevision)
-    srcHash = getSrcHash()
+    if args.baseOnly:
+        srcHash = "!whatever"
+    else:
+        srcHash = getSrcHash()
 
     if os.environ.get("GITHUB_TOKEN"):
         with os.fdopen(os.open("/tmp/ghtoken", os.O_CREAT | os.O_WRONLY, 0o600), 'w') as f:
             f.write(os.environ["GITHUB_TOKEN"])
 
     for typ, buildArgs in types.items():
+        if args.baseOnly:
+            buildBaseImage(typ=typ, buildArgs=buildArgs)
+            continue
+
         baseRebuilt = False
         proc = subprocess.run(
             [

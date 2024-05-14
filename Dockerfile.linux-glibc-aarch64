@@ -35,6 +35,7 @@ RUN --mount=type=cache,id=lwmbs-fedora,target=/var/cache/yum \
         vim \
         xz zstd bzip2 tar curl \
         binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu gcc-c++-aarch64-linux-gnu \
+        nodejs \
     && \
     # Prepare glibc from centos-altarch
     php /fetch_glibc.php && \
