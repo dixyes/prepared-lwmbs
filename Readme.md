@@ -2,13 +2,13 @@
 
 一些准备好可以进行lwmbs构建的环境
 
-dockerhub： https://hub.docker.com/r/dixyes/prepared-lwmbs
+https://ghcr.io/dixyes/prepared-lwmbs
 
 ## tags
 
 ```plain
 不带源码：
-dixyes/prepared-lwmbs:{variant}-{lwmbs_rev}
+ghcr.io/dixyes/prepared-lwmbs:{variant}-{lwmbs_rev}
 ```
 
 | variant | 说明 |
