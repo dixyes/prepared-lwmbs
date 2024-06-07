@@ -6,13 +6,11 @@ from typing import Optional
 
 LWMBS_REPO = os.getenv("LWMBS_REPO", "https://github.com/dixyes/lwmbs")
 LWMBS_BRANCH = os.getenv("LWMBS_BRANCH", "master")
-IMAGE_NAME = os.getenv("IMAGE_NAME", "dixyes/prepared-lwmbs")
-IMAGE_NAME_GHCR = os.getenv("IMAGE_NAME_GHCR", f"ghcr.io/{IMAGE_NAME}")
+IMAGE_NAME = os.getenv("IMAGE_NAME", f"ghcr.io/dixyes/prepared-lwmbs")
 
 PHP_VERSION = "8.2"
 
 if os.environ.get("CI"):
-    IMAGE_NAME_CHECK = IMAGE_NAME_GHCR
     CENTOS_MIRROR = "https://mirror.facebook.net/centos/"
     EPEL_MIRROR = "https://mirror.facebook.net/fedora/epel/"
     SCLO_MIRROR = "https://mirror.facebook.net/centos/7/sclo/"
@@ -22,7 +20,6 @@ if os.environ.get("CI"):
     CENTOS_ALTARCH_MIRROR = "https://mirror.facebook.net/centos-altarch/"
     ALPINE_MIRROR = "https://mirror.facebook.net/alpine/"
 else:
-    IMAGE_NAME_CHECK = IMAGE_NAME
     CENTOS_MIRROR = "https://mirrors.ustc.edu.cn/centos/"
     EPEL_MIRROR = "https://mirrors.ustc.edu.cn/epel/"
     SCLO_MIRROR = "https://mirrors.ustc.edu.cn/centos/7/sclo/"
@@ -53,7 +50,7 @@ types = {
 BUILD_CMD = ("buildx", "build")
 
 
-def getSrcHash(image: str = f"{IMAGE_NAME_CHECK}:linux-glibc-x86_64") -> Optional[str]:
+def getSrcHash(image: str = f"{IMAGE_NAME}:linux-glibc-x86_64") -> Optional[str]:
     proc = subprocess.run(
         [
             "docker",
@@ -111,8 +108,6 @@ def buildBaseImage(typ: str, buildArgs: list[str]):
 
     for tag in (
         f"{IMAGE_NAME}:{typ}-{lwmbsRevision}",
-        f"{IMAGE_NAME_GHCR}:{typ}",
-        f"{IMAGE_NAME_GHCR}:{typ}-{lwmbsRevision}",
     ):
         proc = subprocess.run(
             [
@@ -158,8 +153,6 @@ def buildSrcImage(typ: str, phpVersion: str):
 
     for tag in (
         f"{IMAGE_NAME}:{typ}-src-{srcHash}",
-        f"{IMAGE_NAME_GHCR}:{typ}-src",
-        f"{IMAGE_NAME_GHCR}:{typ}-src-{srcHash}",
     ):
         proc = subprocess.run(
             [
@@ -214,7 +207,7 @@ def mian():
                 "docker",
                 "manifest",
                 "inspect",
-                f"{IMAGE_NAME_CHECK}:{typ}-{lwmbsRevision}",
+                f"{IMAGE_NAME}:{typ}-{lwmbsRevision}",
             ]
         )
         if proc.returncode != 0 or args.override:
@@ -227,7 +220,7 @@ def mian():
                     "docker",
                     "manifest",
                     "inspect",
-                    f"{IMAGE_NAME_CHECK}:{typ}-src-{srcHash}",
+                    f"{IMAGE_NAME}:{typ}-src-{srcHash}",
                 ]
             )
             if baseRebuilt or proc.returncode != 0:
