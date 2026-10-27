@@ -2,7 +2,12 @@ name: Linux build
 
 on:
   push:
+    branches:
+      - latest
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 env:
   # date of the pinned pypa base image tags, keep in sync with the Dockerfiles
@@ -29,6 +34,11 @@ jobs:
     name: Build ${{ matrix.variant }}
     needs: resolve
     runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
     strategy:
       fail-fast: false
       matrix:
@@ -46,14 +56,40 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Build image
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push image
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.${{ matrix.variant }}
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ matrix.variant }}
+            ${{ env.IMAGE_NAME }}:${{ matrix.variant }}-${{ env.BASE_DATE }}-${{ needs.resolve.outputs.rev }}
+          provenance: mode=max
+          sbom: true
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      - name: Pull image
         run: |
-          variant="${{ matrix.variant }}"
-          docker build \
-            --file "Dockerfile.$variant" \
-            --tag "$IMAGE_NAME:$variant" \
-            --tag "$IMAGE_NAME:$variant-$BASE_DATE-${{ needs.resolve.outputs.rev }}" \
-            .
+          docker pull "$IMAGE_NAME:${{ matrix.variant }}"
+          docker pull "$IMAGE_NAME:${{ matrix.variant }}-$BASE_DATE-${{ needs.resolve.outputs.rev }}"
 
       - name: Check image
         run: |
@@ -69,7 +105,10 @@ jobs:
 
       - name: Verify tags
         run: |
-          docker image inspect "$IMAGE_NAME:${{ matrix.variant }}" > /dev/null
-          docker image inspect \
-            "$IMAGE_NAME:${{ matrix.variant }}-$BASE_DATE-${{ needs.resolve.outputs.rev }}" > /dev/null
+          moving="$IMAGE_NAME:${{ matrix.variant }}"
+          pinned="$IMAGE_NAME:${{ matrix.variant }}-$BASE_DATE-${{ needs.resolve.outputs.rev }}"
+          docker image inspect "$moving" > /dev/null
+          docker image inspect "$pinned" > /dev/null
+          test "$(docker image inspect --format '{{.Id}}' "$moving")" = \
+            "$(docker image inspect --format '{{.Id}}' "$pinned")"
           docker image ls --filter "reference=$IMAGE_NAME:*"
