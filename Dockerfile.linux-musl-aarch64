@@ -14,7 +14,7 @@ ARG PHP_VERSION=8.5.12
 RUN --mount=type=cache,id=lwmbs-apk-aarch64,target=/var/cache/apk \
     set -xeo pipefail ; \
     apk add --no-cache \
-        re2c nodejs npm zstd zip vim \
+        re2c flex nodejs npm zstd zip vim \
         libtool gettext-dev \
         zlib-static bzip2-static
 
