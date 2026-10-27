@@ -1,41 +1,55 @@
 # syntax=docker/dockerfile
 
-FROM alpine
+FROM quay.io/pypa/musllinux_1_2_aarch64:2026.10.25-1
 
 LABEL maintainer="Yun Dou <dixyes@gmail.com>" \
     license="MulanPSL-2.0" \
-    description="Image for using lwmbs - linux musl x86_64-aarch64 cross compile"
+    description="Image for using lwmbs - linux musl aarch64 native"
 
 ARG LWMBS_BRANCH=master
 ARG LWMBS_REPO=https://github.com/dixyes/lwmbs.git
 
-ARG ALPINE_MIRROR
+ARG PHP_VERSION=8.5.12
 
-RUN --mount=type=cache,id=lwmbs-alpine,target=/var/cache/apk \
+RUN --mount=type=cache,id=lwmbs-apk-aarch64,target=/var/cache/apk \
     set -xeo pipefail ; \
-    # Setup mirrors if specified
-    [ -n "$ALPINE_MIRROR" ] && { \
-        sed -i 's|^http://dl-cdn.alpinelinux.org/|'$ALPINE_MIRROR'|g' /etc/apk/repositories ; \
-    } ; \
-    # Prepare tools and libs
     apk add --no-cache \
-        php81 curl xz tar bzip2 zstd \
-        alpine-sdk automake autoconf bison flex re2c cmake \
-        libtool gettext-dev git \
-        vim \
-        nodejs npm \
-    && \
-    mkdir -p downloads && \
-    curl -o downloads/aarch64-linux-musl-cross.tgz https://musl.cc/aarch64-linux-musl-cross.tgz && \
-    tar -xvf downloads/aarch64-linux-musl-cross.tgz -C / --strip-components=1 --exclude 'aarch64-linux-musl-cross/usr' && \
-    rm downloads/aarch64-linux-musl-cross.tgz && \
-    # Alias php
-    ln -sf /usr/bin/php81 /usr/bin/php && \
-    # Fetch lwmbs
-    git clone --branch $LWMBS_BRANCH $LWMBS_REPO /lwmbs
+        re2c nodejs npm zstd zip vim \
+        libtool gettext-dev \
+        zlib-static bzip2-static
 
-ENV LWMBS_CC=aarch64-linux-musl-gcc
-ENV LWMBS_CXX=aarch64-linux-musl-g++
+# Build PHP CLI with the GCC shipped by the musllinux image
+RUN --mount=type=cache,id=lwmbs-src-musl-aarch64,target=/var/cache/lwmbs \
+    set -xeo pipefail ; \
+    mkdir -p /var/cache/lwmbs ; \
+    curl -fsSL -o /var/cache/lwmbs/php.tar.xz \
+        "https://www.php.net/distributions/php-${PHP_VERSION}.tar.xz" ; \
+    mkdir -p /usr/src/php-src ; \
+    tar -xf /var/cache/lwmbs/php.tar.xz --strip-components=1 -C /usr/src/php-src ; \
+    cd /usr/src/php-src ; \
+    ./configure \
+        --prefix=/opt/php \
+        --disable-all \
+        --enable-cli ; \
+    make -j "$(nproc)" ; \
+    make install ; \
+    cd / ; \
+    rm -rf /usr/src/php-src
+
+# Fail early if the toolchain is not usable
+ENV PATH="/opt/php/bin:${PATH}"
+RUN set -xeo pipefail ; \
+    gcc --version | head -1 ; \
+    php --version | head -1 ; \
+    cmake --version | head -1 ; \
+    re2c --version ; \
+    node --version ; \
+    npm --version
+
+RUN git clone --branch $LWMBS_BRANCH $LWMBS_REPO /lwmbs
+
+ENV LWMBS_CC=gcc
+ENV LWMBS_CXX=g++
 
 WORKDIR /
 
