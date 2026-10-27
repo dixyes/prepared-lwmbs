@@ -1,49 +1,154 @@
 # syntax=docker/dockerfile
 
-FROM fedora
+FROM quay.io/pypa/manylinux2014_aarch64:2026.10.25-1
 
 LABEL maintainer="Yun Dou <dixyes@gmail.com>" \
     license="MulanPSL-2.0" \
-    description="Image for using lwmbs - linux glibc x86_64-aarch64 cross compile"
+    description="Image for using lwmbs - linux glibc aarch64 native"
 
 ARG LWMBS_BRANCH=master
 ARG LWMBS_REPO=https://github.com/dixyes/lwmbs.git
 
-ARG FEDORA_MIRROR
-ARG CENTOS_ALTARCH_MIRROR
+# CentOS 7 AltArch is EOL, pin a vault snapshot. NSC does not mirror altarch,
+# vault.centos.org refuses the sqlite metadata, CERN keeps a complete vault copy
+ARG CENTOS_MIRROR=https://linuxsoft.cern.ch/centos-vault/altarch/7.9.2009
+# EPEL 7 is archived, zstd is only there
+ARG EPEL_MIRROR=https://archives.fedoraproject.org/pub/archive/epel/7
 
-COPY fetch_glibc.php /
+ARG PHP_VERSION=8.5.12
+ARG RE2C_VERSION=3.1
+# nodejs-wheel-binaries 22.20.0 is the newest aarch64 build that runs on glibc 2.17
+ARG NODE_VERSION=22.20.0
+ARG NODE_WHEEL_URL=https://files.pythonhosted.org/packages/58/be/c7b2e7aa3bb281d380a1c531f84d0ccfe225832dfc3bed1ca171753b9630/nodejs_wheel_binaries-22.20.0-py2.py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl
 
-RUN --mount=type=cache,id=lwmbs-fedora,target=/var/cache/yum \
+# Replace the EOL repositories with the pinned vault snapshot
+RUN --mount=type=cache,id=lwmbs-centos7-aarch64,target=/var/cache/yum \
     set -xeo pipefail ; \
-    find /etc/yum.repos.d -name "*cisco*.repo" -exec rm {} \; && \
-    # Setup mirrors if specified
-    [ -n "$FEDORA_MIRROR" ] && { \
-        sed -i 's/^metalink=/#metalink=/g' /etc/yum.repos.d/*.repo && \
-        sed -i 's/^mirrorlist=/#mirrorlist=/g' /etc/yum.repos.d/*.repo && \
-        sed -i 's|^#baseurl=http://download.example/pub/fedora/linux/|baseurl='$FEDORA_MIRROR'|g' /etc/yum.repos.d/*.repo ;\
-        # dnf config-manager --save --setopt zchunk=False ; \
-    } ; \
-    # Prepare tools and libs
-    dnf install -yy --setopt zchunk=False \
-        php-cli \
-        git diffstat gettext git patch patchutils \
-        file less make ncurses pkgconf pkgconf-m4 pkgconf-pkg-config \
-        procps-ng unzip util-linux zip diffutils cpio \
-        re2c perl bison flex autoconf automake cmake \
-        libtool gettext-devel \
-        vim \
-        xz zstd bzip2 tar curl \
-        binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu gcc-c++-aarch64-linux-gnu \
-        nodejs \
-    && \
-    # Prepare glibc from centos-altarch
-    php /fetch_glibc.php && \
-    # Fetch lwmbs
-    git clone --branch $LWMBS_BRANCH $LWMBS_REPO /lwmbs
+    rm -f /etc/yum.repos.d/*.repo ; \
+    { \
+        echo '[base]' ; \
+        echo 'name=CentOS-7 - Base' ; \
+        echo 'baseurl='"${CENTOS_MIRROR}"'/os/$basearch/' ; \
+        echo 'enabled=1' ; \
+        echo 'gpgcheck=1' ; \
+        echo 'gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7' ; \
+        echo ; \
+        echo '[updates]' ; \
+        echo 'name=CentOS-7 - Updates' ; \
+        echo 'baseurl='"${CENTOS_MIRROR}"'/updates/$basearch/' ; \
+        echo 'enabled=1' ; \
+        echo 'gpgcheck=1' ; \
+        echo 'gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7' ; \
+        echo ; \
+        echo '[extras]' ; \
+        echo 'name=CentOS-7 - Extras' ; \
+        echo 'baseurl='"${CENTOS_MIRROR}"'/extras/$basearch/' ; \
+        echo 'enabled=1' ; \
+        echo 'gpgcheck=1' ; \
+        echo 'gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7' ; \
+        echo ; \
+        echo '[centos-sclo-rh]' ; \
+        echo 'name=CentOS-7 - SCLo rh' ; \
+        echo 'baseurl='"${CENTOS_MIRROR}"'/sclo/$basearch/rh/' ; \
+        echo 'enabled=1' ; \
+        echo 'gpgcheck=1' ; \
+        echo 'gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-SIG-SCLo' ; \
+        echo ; \
+        echo '[centos-sclo-sclo]' ; \
+        echo 'name=CentOS-7 - SCLo sclo' ; \
+        echo 'baseurl='"${CENTOS_MIRROR}"'/sclo/$basearch/sclo/' ; \
+        echo 'enabled=1' ; \
+        echo 'gpgcheck=1' ; \
+        echo 'gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-SIG-SCLo' ; \
+        echo ; \
+        echo '[epel]' ; \
+        echo 'name=EPEL-7' ; \
+        echo 'baseurl='"${EPEL_MIRROR}"'/$basearch/' ; \
+        echo 'enabled=1' ; \
+        echo 'gpgcheck=1' ; \
+        echo 'gpgkey=https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-7' ; \
+    } > /etc/yum.repos.d/centos7.repo ; \
+    yum install -y \
+        byacc cscope ctags diffstat elfutils flex gettext gettext-devel git \
+        glibc-static kernel-headers less libtool m4 mpfr nettle patchutils \
+        perl-IPC-Cmd vim zip zstd \
+        devtoolset-10-binutils devtoolset-10-gcc devtoolset-10-gcc-c++ \
+        devtoolset-10-libstdc++-devel devtoolset-10-make
 
-ENV LWMBS_CC=aarch64-linux-gnu-gcc
-ENV LWMBS_CXX=aarch64-linux-gnu-g++
+# There is no devtoolset-11 for altarch, gcc 10.2 is the newest SCL toolchain for
+# this architecture. PHP 8.5 and later only require C11 and C11 atomics
+ENV PATH="/opt/rh/devtoolset-10/root/usr/bin:/opt/php/bin:/opt/re2c/bin:/opt/nodejs/bin:${PATH}"
+
+# Build re2c, PHP CLI and unpack node
+RUN --mount=type=cache,id=lwmbs-src-aarch64,target=/var/cache/lwmbs \
+    set -xeo pipefail ; \
+    mkdir -p /var/cache/lwmbs ; \
+    curl -fsSL -o /var/cache/lwmbs/re2c.tar.xz \
+        "https://github.com/skvadrik/re2c/releases/download/${RE2C_VERSION}/re2c-${RE2C_VERSION}.tar.xz" ; \
+    mkdir -p /usr/src/re2c ; \
+    tar -xf /var/cache/lwmbs/re2c.tar.xz --strip-components=1 -C /usr/src/re2c ; \
+    cd /usr/src/re2c ; \
+    ./configure --prefix=/opt/re2c ; \
+    make -j "$(nproc)" ; \
+    make install ; \
+    curl -fsSL -o /var/cache/lwmbs/php.tar.xz \
+        "https://www.php.net/distributions/php-${PHP_VERSION}.tar.xz" ; \
+    mkdir -p /usr/src/php-src ; \
+    tar -xf /var/cache/lwmbs/php.tar.xz --strip-components=1 -C /usr/src/php-src ; \
+    cd /usr/src/php-src ; \
+    ./configure \
+        --prefix=/opt/php \
+        --disable-all \
+        --enable-cli ; \
+    make -j "$(nproc)" ; \
+    make install ; \
+    curl -fsSL -o /var/cache/lwmbs/node.whl \
+        "${NODE_WHEEL_URL}" ; \
+    mkdir -p /tmp/node-wheel ; \
+    unzip -q /var/cache/lwmbs/node.whl -d /tmp/node-wheel ; \
+    mkdir -p /opt/nodejs ; \
+    cp -a /tmp/node-wheel/nodejs_wheel/. /opt/nodejs/ ; \
+    rm -rf /tmp/node-wheel ; \
+    printf '#!/bin/sh\nexec /opt/nodejs/bin/node /opt/nodejs/lib/node_modules/npm/bin/npm-cli.js "$@"\n' > /opt/nodejs/bin/npm ; \
+    chmod +x /opt/nodejs/bin/npm /opt/nodejs/bin/node ; \
+    cd / ; \
+    rm -rf /usr/src/re2c /usr/src/php-src
+
+# C11 with atomics is the newest language feature needed by PHP 8.5 to 8.7,
+# fail the build if the toolchain cannot compile it
+RUN set -xeo pipefail ; \
+    test "$(gcc -dumpversion | cut -d. -f1)" -ge 10 ; \
+    printf '%s\n' \
+        '#include <stdatomic.h>' \
+        '_Static_assert(sizeof(int) == 4, "int is 32-bit");' \
+        'int c11_probe(void) {' \
+        '    _Atomic int value = 0;' \
+        '    return atomic_fetch_add(&value, 1);' \
+        '}' > /tmp/c11-probe.c ; \
+    gcc -std=gnu11 -Wall -Werror -c /tmp/c11-probe.c -o /tmp/c11-probe.o ; \
+    rm -f /tmp/c11-probe.c /tmp/c11-probe.o ; \
+    gcc --version | head -1 ; \
+    php --version | head -1 ; \
+    cmake --version | head -1 ; \
+    re2c --version ; \
+    node --version ; \
+    npm --version
+
+# The wheel has a broken bin/npm, check the wrapper and the packages lwmbs CI uses
+RUN set -xeo pipefail ; \
+    test "$(node --version)" = "v${NODE_VERSION}" ; \
+    test "$(npm --version)" = "10.9.3" ; \
+    npm_config_prefix=/tmp/npm-check npm_config_cache=/tmp/npm-check/.npm \
+        npm i -g --no-audit --no-fund \
+        @actions/core@1.11.1 @actions/github@5.1.1 @actions/artifact@2.3.0 @actions/exec@1.1.1 ; \
+    NODE_PATH=/tmp/npm-check/lib/node_modules node -e \
+        'require("@actions/core"); require("@actions/github"); require("@actions/artifact"); require("@actions/exec")' ; \
+    rm -rf /tmp/npm-check
+
+RUN git clone --branch $LWMBS_BRANCH $LWMBS_REPO /lwmbs
+
+ENV LWMBS_CC=gcc
+ENV LWMBS_CXX=g++
 
 WORKDIR /
 
