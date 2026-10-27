@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile
 
-FROM alpine
+FROM quay.io/pypa/musllinux_1_2_x86_64:2026.10.25-1
 
 LABEL maintainer="Yun Dou <dixyes@gmail.com>" \
     license="MulanPSL-2.0" \
@@ -9,32 +9,47 @@ LABEL maintainer="Yun Dou <dixyes@gmail.com>" \
 ARG LWMBS_BRANCH=master
 ARG LWMBS_REPO=https://github.com/dixyes/lwmbs.git
 
-ARG ALPINE_MIRROR
+ARG PHP_VERSION=8.5.12
 
-RUN --mount=type=cache,id=lwmbs-alpine,target=/var/cache/apk \
+RUN --mount=type=cache,id=lwmbs-apk-x86_64,target=/var/cache/apk \
     set -xeo pipefail ; \
-    # Setup mirrors if specified
-    [ -n "$ALPINE_MIRROR" ] && { \
-        sed -i 's|^http://dl-cdn.alpinelinux.org/|'$ALPINE_MIRROR'|g' /etc/apk/repositories ; \
-    } ; \
-    # Prepare tools and libs
     apk add --no-cache \
-        php81 curl xz tar \
-        alpine-sdk automake autoconf bison flex re2c cmake clang lld linux-headers \
-        libtool gettext-dev git \
-        vim \
-        zlib-static zlib-dev \
-        bzip2 bzip2-static bzip2-dev \
-        zstd \
-        nodejs npm \
-    && \
-    # Alias php
-    ln -sf /usr/bin/php81 /usr/bin/php && \
-    # Fetch lwmbs
-    git clone --branch $LWMBS_BRANCH $LWMBS_REPO /lwmbs
+        re2c nodejs npm zstd zip vim \
+        libtool gettext-dev \
+        zlib-static bzip2-static
 
-ENV LWMBS_CC=clang
-ENV LWMBS_CXX=clang++
+# Build PHP CLI with the GCC shipped by the musllinux image
+RUN --mount=type=cache,id=lwmbs-src-musl-x86_64,target=/var/cache/lwmbs \
+    set -xeo pipefail ; \
+    mkdir -p /var/cache/lwmbs ; \
+    curl -fsSL -o /var/cache/lwmbs/php.tar.xz \
+        "https://www.php.net/distributions/php-${PHP_VERSION}.tar.xz" ; \
+    mkdir -p /usr/src/php-src ; \
+    tar -xf /var/cache/lwmbs/php.tar.xz --strip-components=1 -C /usr/src/php-src ; \
+    cd /usr/src/php-src ; \
+    ./configure \
+        --prefix=/opt/php \
+        --disable-all \
+        --enable-cli ; \
+    make -j "$(nproc)" ; \
+    make install ; \
+    cd / ; \
+    rm -rf /usr/src/php-src
+
+# Fail early if the toolchain is not usable
+ENV PATH="/opt/php/bin:${PATH}"
+RUN set -xeo pipefail ; \
+    gcc --version | head -1 ; \
+    php --version | head -1 ; \
+    cmake --version | head -1 ; \
+    re2c --version ; \
+    node --version ; \
+    npm --version
+
+RUN git clone --branch $LWMBS_BRANCH $LWMBS_REPO /lwmbs
+
+ENV LWMBS_CC=gcc
+ENV LWMBS_CXX=g++
 
 WORKDIR /
 
