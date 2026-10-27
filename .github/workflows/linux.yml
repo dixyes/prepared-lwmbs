@@ -3,29 +3,73 @@ name: Linux build
 on:
   push:
   workflow_dispatch:
-    inputs:
-      override:
-        description: "overrides build"
-        required: false
-        default: ""
+
+env:
+  # date of the pinned pypa base image tags, keep in sync with the Dockerfiles
+  BASE_DATE: "2026.10.25"
+  LWMBS_REPO: https://github.com/dixyes/lwmbs.git
+  LWMBS_BRANCH: master
+  IMAGE_NAME: ghcr.io/dixyes/prepared-lwmbs
 
 jobs:
-  linux:
-    name: Build for linux images
+  resolve:
+    name: Resolve lwmbs revision
     runs-on: ubuntu-latest
+    outputs:
+      rev: ${{ steps.rev.outputs.rev }}
+    steps:
+      - name: Resolve lwmbs revision
+        id: rev
+        run: |
+          rev=$(git ls-remote --heads "$LWMBS_REPO" "$LWMBS_BRANCH" | cut -f1)
+          test -n "$rev"
+          echo "rev=$rev" >> "$GITHUB_OUTPUT"
+
+  linux:
+    name: Build ${{ matrix.variant }}
+    needs: resolve
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # native build on a matching architecture runner
+          - variant: linux-glibc-x86_64
+            runner: ubuntu-latest
+          - variant: linux-glibc-aarch64
+            runner: ubuntu-24.04-arm
+          - variant: linux-musl-x86_64
+            runner: ubuntu-latest
+          - variant: linux-musl-aarch64
+            runner: ubuntu-24.04-arm
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
 
-      - name: Build and push
-        shell: bash
+      - name: Build image
         run: |
-          echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ vars.DOCKERHUB_USERNAME }}" --password-stdin
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login -u "${{ github.actor }}" "ghcr.io" --password-stdin
-          export "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}"
-          if [ -z "${{ github.event.inputs.override }}" ]; then
-            python ./upload.py --baseOnly
-          else
-            python ./upload.py --override
-          fi
-          rm ~/.docker/config.json
+          variant="${{ matrix.variant }}"
+          docker build \
+            --file "Dockerfile.$variant" \
+            --tag "$IMAGE_NAME:$variant" \
+            --tag "$IMAGE_NAME:$variant-$BASE_DATE-${{ needs.resolve.outputs.rev }}" \
+            .
+
+      - name: Check image
+        run: |
+          docker run --rm "$IMAGE_NAME:${{ matrix.variant }}" sh -c '
+            set -ex
+            gcc --version | head -1
+            php --version | head -1
+            cmake --version | head -1
+            re2c --version
+            node --version
+            npm --version
+          '
+
+      - name: Verify tags
+        run: |
+          docker image inspect "$IMAGE_NAME:${{ matrix.variant }}" > /dev/null
+          docker image inspect \
+            "$IMAGE_NAME:${{ matrix.variant }}-$BASE_DATE-${{ needs.resolve.outputs.rev }}" > /dev/null
+          docker image ls --filter "reference=$IMAGE_NAME:*"
