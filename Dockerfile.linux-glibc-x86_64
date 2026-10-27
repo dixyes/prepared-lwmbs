@@ -1,96 +1,6 @@
 # syntax=docker/dockerfile
 
-FROM centos:7 AS mirror-setup
-
-ARG CENTOS_MIRROR
-ARG EPEL_MIRROR
-ARG SCLO_MIRROR
-
-# Setup mirrors if specified
-RUN --mount=type=cache,id=lwmbs-centos7,target=/var/cache/yum \
-    set -xeo pipefail ; \
-    [ -n "$CENTOS_MIRROR" ] && { \
-        sed -i 's/^metalink=/#metalink=/g' /etc/yum.repos.d/*.repo && \
-        sed -i 's/^mirrorlist=/#mirrorlist=/g' /etc/yum.repos.d/*.repo && \
-        sed -i 's|^#\s*baseurl=http://mirror\.centos\.org/centos/|baseurl='$CENTOS_MIRROR'|g' /etc/yum.repos.d/*.repo ; \
-    } ; \
-    yum install -yy epel-release centos-release-scl && \
-    [ -n "$EPEL_MIRROR" ]  && { \
-        sed -i 's/^metalink=/#metalink=/g' /etc/yum.repos.d/*.repo && \
-        sed -i 's/^mirrorlist=/#mirrorlist=/g' /etc/yum.repos.d/*.repo && \
-        sed -i 's|^#\s*baseurl=http://download.fedoraproject.org/pub/epel/|baseurl='$EPEL_MIRROR'|g' /etc/yum.repos.d/*.repo ; \
-    } ; \
-    [ -n "$SCLO_MIRROR" ]  && { \
-        sed -i 's/^metalink=/#metalink=/g' /etc/yum.repos.d/*.repo && \
-        sed -i 's/^mirrorlist=/#mirrorlist=/g' /etc/yum.repos.d/*.repo && \
-        sed -i 's|^#\s*baseurl=http://mirror\.centos\.org/centos/7/sclo/|baseurl='$SCLO_MIRROR'|g' /etc/yum.repos.d/*.repo ; \
-    }
-
-# Prepare PHP 8.1 and cmake tar for CentOS
-FROM mirror-setup AS tools
-
-ARG PHP_VERSION=8.1.22
-ARG CMAKE_VERSION=3.27.1
-ARG RE2C_VERSION=3.1
-ARG NODE_VERSION=20.9.0
-ARG TAR_VERSION=latest
-ARG GNU_MIRROR=https://ftp.gnu.org/gnu/
-
-ADD https://github.com/skvadrik/re2c/releases/download/${RE2C_VERSION}/re2c-${RE2C_VERSION}.tar.xz /usr/src/
-ADD https://www.php.net/distributions/php-${PHP_VERSION}.tar.xz /usr/src/
-ADD https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz /opt/
-ADD ${GNU_MIRROR}tar/tar-${TAR_VERSION}.tar.xz /usr/src/
-ADD https://unofficial-builds.nodejs.org/download/release/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64-glibc-217.tar.xz /opt/
-
-RUN --mount=type=cache,id=lwmbs-centos7,target=/var/cache/yum \
-    set -xeo pipefail ; \
-    # Install dev tools
-    yum install -yy \
-        perl m4 autoconf automake bison byacc gcc gcc-c++ \
-        diffstat elfutils flex gettext \
-        libtool make patch patchutils cpp file \
-        glibc-headers glibc-devel kernel-headers less \
-        mpfr nettle zip unzip \
-        libtool gettext-devel \
-        vim \
-        xz zstd bzip2 tar curl && \
-    # Build and install re2c to /opt
-    mkdir -p /usr/src/re2c && \
-    tar -xf /usr/src/re2c-${RE2C_VERSION}.tar.xz --strip-components=1 -C /usr/src/re2c && \
-    cd /usr/src/re2c && \
-    sed -i 's/AM_PATH_PYTHON(\[3.7\])//g' configure.ac && \
-    ./autogen.sh && \
-    ./configure --prefix=/opt/re2c && \
-    make -j $(nproc) && \
-    make install && \
-    export PATH="/opt/re2c/bin:${PATH}" && \
-    # Build and install php to /opt
-    mkdir -p /usr/src/php-src && \
-    tar -xf /usr/src/php-${PHP_VERSION}.tar.xz --strip-components=1 -C /usr/src/php-src && \
-    cd /usr/src/php-src && \
-    ./configure \
-        --prefix=/opt/php \
-        --disable-all \
-        --enable-cli && \
-    make -j $(nproc) && \
-    make install && \
-    # Prepare cmake
-    mkdir -p /opt/cmake && \
-    tar -xf /opt/cmake-${CMAKE_VERSION}-linux-x86_64.tar.gz --strip-components=1 -C /opt/cmake && \
-    # Prepare newer gnu tar
-    # curl -sLO https://ftp.gnu.org/gnu/tar/tar-${TAR_VERSION}.tar.xz && \
-    mkdir /usr/src/tar && \
-    tar -xf /usr/src/tar-${TAR_VERSION}.tar.xz --strip-components=1 -C /usr/src/tar && \
-    cd /usr/src/tar && \
-    FORCE_UNSAFE_CONFIGURE=1 ./configure --prefix=/usr && \
-    make -j $(nproc) && \
-    make install DESTDIR=/inst && \
-    # Prepare nodejs
-    mkdir -p /opt/nodejs && \
-    tar -xf /opt/node-v${NODE_VERSION}-linux-x64-glibc-217.tar.xz --strip-components=1 -C /opt/nodejs
-
-# Final image
-FROM mirror-setup
+FROM quay.io/pypa/manylinux2014_x86_64:2026.10.25-1
 
 LABEL maintainer="Yun Dou <dixyes@gmail.com>" \
     license="MulanPSL-2.0" \
@@ -99,31 +9,116 @@ LABEL maintainer="Yun Dou <dixyes@gmail.com>" \
 ARG LWMBS_BRANCH=master
 ARG LWMBS_REPO=https://github.com/dixyes/lwmbs.git
 
-# Copy tools
-COPY --from=tools /opt/re2c /opt/re2c/
-COPY --from=tools /opt/php /opt/php/
-COPY --from=tools /opt/cmake /opt/cmake/
-COPY --from=tools /opt/nodejs /opt/nodejs/
-COPY --from=tools /inst /
+# CentOS 7 is EOL, pin a vault snapshot. NSC keeps a complete 7.9.2009 tree
+ARG CENTOS_MIRROR=https://mirror.nsc.liu.se/centos-store/7.9.2009
+# EPEL 7 is archived, zstd is only there
+ARG EPEL_MIRROR=https://archives.fedoraproject.org/pub/archive/epel/7
 
-# Prepare tools and fetch lwmbs
-RUN --mount=type=cache,id=lwmbs-centos7,target=/var/cache/yum \
-    yum install -yy \
-        perl m4 autoconf automake bison byacc cscope ctags \
-        diffstat elfutils flex gettext \
-        git libtool make patch patchutils cpp file \
-        glibc-headers glibc-devel kernel-headers less \
-        mpfr nettle zip unzip \
-        perl-IPC-Cmd devtoolset-11-binutils \
-        devtoolset-11-gcc devtoolset-11-libstdc++-devel \
-        devtoolset-11-gcc-c++ devtoolset-11-make \
-        libtool gettext-devel \
-        vim \
-        glibc-static \
-        xz zstd bzip2 tar curl && \
-    git clone --branch $LWMBS_BRANCH $LWMBS_REPO /lwmbs
+ARG PHP_VERSION=8.5.12
+ARG RE2C_VERSION=3.1
+# the official x86_64 tarball requires glibc 2.28, this is the unofficial glibc 2.17 build
+ARG NODE_VERSION=22.23.4
 
-ENV PATH="/opt/rh/devtoolset-11/root/usr/bin:/opt/cmake/bin:/opt/re2c/bin:/opt/php/bin:/opt/nodejs/bin:${PATH}"
+# Replace the EOL repositories with the pinned vault snapshot
+RUN --mount=type=cache,id=lwmbs-centos7-x86_64,target=/var/cache/yum \
+    set -xeo pipefail ; \
+    rm -f /etc/yum.repos.d/*.repo ; \
+    { \
+        echo '[base]' ; \
+        echo 'name=CentOS-7 - Base' ; \
+        echo 'baseurl='"${CENTOS_MIRROR}"'/os/$basearch/' ; \
+        echo 'enabled=1' ; \
+        echo 'gpgcheck=1' ; \
+        echo 'gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7' ; \
+        echo ; \
+        echo '[updates]' ; \
+        echo 'name=CentOS-7 - Updates' ; \
+        echo 'baseurl='"${CENTOS_MIRROR}"'/updates/$basearch/' ; \
+        echo 'enabled=1' ; \
+        echo 'gpgcheck=1' ; \
+        echo 'gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7' ; \
+        echo ; \
+        echo '[extras]' ; \
+        echo 'name=CentOS-7 - Extras' ; \
+        echo 'baseurl='"${CENTOS_MIRROR}"'/extras/$basearch/' ; \
+        echo 'enabled=1' ; \
+        echo 'gpgcheck=1' ; \
+        echo 'gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7' ; \
+        echo ; \
+        echo '[centos-sclo-rh]' ; \
+        echo 'name=CentOS-7 - SCLo rh' ; \
+        echo 'baseurl='"${CENTOS_MIRROR}"'/sclo/$basearch/rh/' ; \
+        echo 'enabled=1' ; \
+        echo 'gpgcheck=1' ; \
+        echo 'gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-SIG-SCLo' ; \
+        echo ; \
+        echo '[centos-sclo-sclo]' ; \
+        echo 'name=CentOS-7 - SCLo sclo' ; \
+        echo 'baseurl='"${CENTOS_MIRROR}"'/sclo/$basearch/sclo/' ; \
+        echo 'enabled=1' ; \
+        echo 'gpgcheck=1' ; \
+        echo 'gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-SIG-SCLo' ; \
+        echo ; \
+        echo '[epel]' ; \
+        echo 'name=EPEL-7' ; \
+        echo 'baseurl='"${EPEL_MIRROR}"'/$basearch/' ; \
+        echo 'enabled=1' ; \
+        echo 'gpgcheck=1' ; \
+        echo 'gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-7' ; \
+    } > /etc/yum.repos.d/centos7.repo ; \
+    yum install -y \
+        byacc cscope ctags diffstat elfutils flex gettext gettext-devel \
+        glibc-static kernel-headers less m4 mpfr nettle patchutils perl-IPC-Cmd \
+        vim zip zstd \
+        devtoolset-11-binutils devtoolset-11-gcc devtoolset-11-gcc-c++ \
+        devtoolset-11-libstdc++-devel devtoolset-11-make
+
+# gcc 11 from SCLo, the image defaults to devtoolset-10
+ENV PATH="/opt/rh/devtoolset-11/root/usr/bin:/opt/php/bin:/opt/re2c/bin:/opt/nodejs/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/opt/rh/devtoolset-11/root/usr/lib64:/opt/rh/devtoolset-11/root/usr/lib:/opt/rh/devtoolset-11/root/usr/lib64/dyninst:/opt/rh/devtoolset-11/root/usr/lib/dyninst:${LD_LIBRARY_PATH}"
+
+# Build re2c, PHP CLI and unpack node
+RUN --mount=type=cache,id=lwmbs-src-x86_64,target=/var/cache/lwmbs \
+    set -xeo pipefail ; \
+    mkdir -p /var/cache/lwmbs ; \
+    curl -fsSL -o /var/cache/lwmbs/re2c.tar.xz \
+        "https://github.com/skvadrik/re2c/releases/download/${RE2C_VERSION}/re2c-${RE2C_VERSION}.tar.xz" ; \
+    mkdir -p /usr/src/re2c ; \
+    tar -xf /var/cache/lwmbs/re2c.tar.xz --strip-components=1 -C /usr/src/re2c ; \
+    cd /usr/src/re2c ; \
+    ./configure --prefix=/opt/re2c ; \
+    make -j "$(nproc)" ; \
+    make install ; \
+    curl -fsSL -o /var/cache/lwmbs/php.tar.xz \
+        "https://www.php.net/distributions/php-${PHP_VERSION}.tar.xz" ; \
+    mkdir -p /usr/src/php-src ; \
+    tar -xf /var/cache/lwmbs/php.tar.xz --strip-components=1 -C /usr/src/php-src ; \
+    cd /usr/src/php-src ; \
+    ./configure \
+        --prefix=/opt/php \
+        --disable-all \
+        --enable-cli ; \
+    make -j "$(nproc)" ; \
+    make install ; \
+    curl -fsSL -o /var/cache/lwmbs/node.tar.xz \
+        "https://unofficial-builds.nodejs.org/download/release/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64-glibc-217.tar.xz" ; \
+    mkdir -p /opt/nodejs ; \
+    tar -xf /var/cache/lwmbs/node.tar.xz --strip-components=1 -C /opt/nodejs ; \
+    cd / ; \
+    rm -rf /usr/src/re2c /usr/src/php-src
+
+# Fail early if the toolchain is not the expected one
+RUN set -xeo pipefail ; \
+    test "$(gcc -dumpversion | cut -d. -f1)" -ge 11 ; \
+    gcc --version | head -1 ; \
+    php --version | head -1 ; \
+    cmake --version | head -1 ; \
+    re2c --version ; \
+    node --version ; \
+    npm --version
+
+RUN git clone --branch $LWMBS_BRANCH $LWMBS_REPO /lwmbs
+
 ENV LWMBS_CC=gcc
 ENV LWMBS_CXX=g++
 
