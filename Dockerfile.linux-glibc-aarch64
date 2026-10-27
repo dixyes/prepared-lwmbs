@@ -71,7 +71,7 @@ RUN --mount=type=cache,id=lwmbs-centos7-aarch64,target=/var/cache/yum \
     yum install -y \
         byacc cscope ctags diffstat elfutils flex gettext gettext-devel git \
         glibc-static kernel-headers less libtool m4 mpfr nettle patchutils \
-        perl-IPC-Cmd vim zip zstd \
+        perl-IPC-Cmd perl-Time-Piece vim zip zstd \
         devtoolset-10-binutils devtoolset-10-gcc devtoolset-10-gcc-c++ \
         devtoolset-10-libstdc++-devel devtoolset-10-make
 
